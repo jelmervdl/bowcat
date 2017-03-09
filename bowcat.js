@@ -33,8 +33,11 @@ var outputDir = opts.o || path.join('.', 'build');
 // package. 'dir' is the path to the package, 'mains' is the 'main' field
 // in the package's bower.json, 'minified' is whether or not to include
 // minified files
-function constructFileList (dir, mains, minified) {
+function constructFileList (dir, mains, minified, pack) {
   var files = fs.readdirSync(dir);
+
+  if (pack === undefined)
+    pack = dir;
 
   files = _.map(files, function (f) {
     return path.join(dir, f);
@@ -42,17 +45,21 @@ function constructFileList (dir, mains, minified) {
 
   _.each(files, function (f, i, l) {
     if (fs.statSync(f).isDirectory())
-      files = files.concat(constructFileList(f, mains, minified));
+      files = files.concat(constructFileList(f, mains, minified, pack));
   });
+
+  debug('mains', mains);
 
   files = _.filter(files, function (f) {
     if (fs.statSync(f).isDirectory()) return false;
 
     var fname = path.basename(f).split('.').slice(0, -1).join('.');
-
+    var dname = path.dirname(path.relative(pack, f));
+    
     var include = _.some(mains, function (m) {
-      m = path.basename(m).split('.').slice(0, -1).join('.');
-      return m === fname;
+      let f = path.basename(m).split('.').slice(0, -1).join('.');
+      let d = path.dirname(m);
+      return f === fname && d === dname;
     });
 
     if (minified)
@@ -63,7 +70,7 @@ function constructFileList (dir, mains, minified) {
   });
 
   if (minified && files.length === 0) {
-    return constructFileList(dir, mains, false);
+    return constructFileList(dir, mains, false, pack);
   }
 
   return files;
