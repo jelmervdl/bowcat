@@ -48,8 +48,6 @@ function constructFileList (dir, mains, minified, pack) {
       files = files.concat(constructFileList(f, mains, minified, pack));
   });
 
-  debug('mains', mains);
-
   files = _.filter(files, function (f) {
     if (fs.statSync(f).isDirectory()) return false;
 
