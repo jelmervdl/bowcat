@@ -73,6 +73,13 @@ function constructFileList (dir, mains, minified, pack) {
 
   return files;
 }
+// copy: copy the contents of a file to another file. 'source' is the
+// path of the source file, dest the target file. Target will be truncated.
+function copy(source, dest) {
+  let fin = fs.createReadStream(source);
+  let fout = fs.createWriteStream(dest);
+  fin.pipe(fout);
+}
 
 // concatPackage: concatenate a single package. 'package' is the full path to
 // the package directory, 'outDir' is the output directory, 'minified'
@@ -107,16 +114,27 @@ function concatPackage (pack, outDir, minified) {
   var concatJS = '', concatCSS = '';
 
   _.each(files, function (filepath, i, l) {
-    var contents = fs.readFileSync(filepath) + '\n';
     var ext = filepath.split('.')[filepath.split('.').length - 1];
 
-    if (ext === 'js' || ext === 'css')
-      debug('including file ' + filepath + '...');
+    if (ext !== 'js' && ext !== 'css') {
+      debug('copying non-css or js file ' + filepath);
+      copy(filepath, path.join(outDir, path.basename(filepath)));
+      return;
+    }
 
-    if (ext === 'js')
-      concatJS += contents;
-    else if (ext === 'css')
-      concatCSS += contents;
+    debug('including file ' + filepath + '...');
+
+    var contents = fs.readFileSync(filepath) + '\n';  
+
+    switch (ext) {
+      case 'js':
+        concatJS += contents;
+        break;
+
+      case 'css':
+        concatCSS += contents;
+        break;
+    }
   });
 
   if (concatJS !== '' || concatCSS !== '')
