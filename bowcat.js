@@ -13,11 +13,12 @@ var debug = require('debug')('bowcat');
 
 var opts = require('minimist')(process.argv.slice(2));
 
-var usage = 'Usage: bowcat [<input-dir>] [-o <output-dir>] [--min | -m]\n\n'
+var usage = 'Usage: bowcat [<input-dir>] [-o <output-dir>] [-d <pkg>:<dep1>,<dep2>] [--min | -m]\n\n'
           + 'Quickly concatenate bower dependencies.\n\n'
           + 'Options:\n'
-          + '  -o <output-dir>  Where to write the concatenated dependencies to\n'
-          + '  --min, -m        Include only minified files [default: false]\n'
+          + '  -o <output-dir>   Where to write the concatenated dependencies to\n'
+          + '  --min, -m         Include only minified files [default: false]\n'
+          + '  -d <pkg>:<deps>   Override package dependencies for pkg to deps\n'
 
 // opt parsing
 if (opts.help) {
@@ -28,6 +29,17 @@ if (opts.help) {
 var includeMins = opts.min || opts.m;
 var inputDir = opts._[0] || '.';
 var outputDir = opts.o || path.join('.', 'build');
+
+var depsOverride = {}
+
+if (opts.d) {
+  var val = typeof opts.d === 'string' ? [opts.d] : opts.d;
+  
+  val.forEach(function(override) {
+    var kv = override.split(':', 2);
+    depsOverride[kv[0]] = kv[1].split(',');
+  });
+}
 
 // constructFileList: create a list of files to concat for a particular
 // package. 'dir' is the path to the package, 'mains' is the 'main' field
@@ -96,12 +108,12 @@ function concatPackage (pack, outDir, minified) {
     fs.readFileSync(path.join(pack, bowerFile))
   );
   var bowerJSON = json.normalize(regularJSON);
-  var deps = bowerJSON.dependencies || {};
+  var deps = depsOverride[path.basename(pack)] || Object.keys(bowerJSON.dependencies || {});
   var mains = bowerJSON.main || [];
 
   concatedPkgs.push(path.basename(pack));
 
-  _.each(Object.keys(deps), function (pkg, i, l) {
+  _.each(deps, function (pkg, i, l) {
     var components = pack.split(path.sep);
     var pkgpath = components.slice(0, -1).join(path.sep);
 
